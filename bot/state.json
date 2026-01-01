@@ -1,0 +1,11 @@
+{
+  "btc_amount": 0.007449060838962892,
+  "entry_price": 120820.6,
+  "exit_price": null,
+  "last_trade_time": 1767302257,
+  "mode": "LONG",
+  "sim_btc_balance": 0.007449060838962892,
+  "sim_cad_balance": 100.0,
+  "trades_date_yyyy_mm_dd": "2026-01-01",
+  "trades_today": 1
+}

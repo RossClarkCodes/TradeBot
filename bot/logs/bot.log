@@ -1,0 +1,98 @@
+[2026-01-01T15:17:09] [   INFO] ========================================
+[2026-01-01T15:17:09] [   INFO] Kraken Trading Bot Starting
+[2026-01-01T15:17:09] [   INFO] ========================================
+[2026-01-01T15:17:09] [   INFO] Configuration loaded:
+  pair: XBT/CAD
+  take_profit_pct: 1.5%
+  stop_loss_pct: 0.6%
+  rebuy_reset_pct: 0.6%
+  risk_per_trade_pct: 1%
+  max_position_pct: 90%
+  min_cad_required_pct: 2%
+  poll_interval_seconds: 5
+  cooldown_seconds: 600
+  max_trades_per_day: 3
+  dry_run: true
+  sim_fee_pct_roundtrip: 0.4%
+  sim_initial_cad: 1000
+  kraken_api_base: https://api.kraken.com
+  rate_limit_min_delay_ms: 500
+  max_consecutive_failures: 10
+  stale_price_seconds: 30
+[2026-01-01T15:17:09] [   INFO] *** RUNNING IN DRY-RUN MODE - NO REAL ORDERS WILL BE PLACED ***
+[2026-01-01T15:17:09] [WARNING] KRAKEN_API_KEY or KRAKEN_API_SECRET environment variables not set
+[2026-01-01T15:17:09] [WARNING] Private API endpoints will not be available
+[2026-01-01T15:17:09] [   INFO] Loaded state from: state.json
+[2026-01-01T15:17:09] [   INFO] Current state:
+  mode: FLAT
+  entry_price: null
+  exit_price: null
+  btc_amount: 0
+  last_trade_time: null
+  trades_today: 0
+  trades_date: 2026-01-01
+  sim_cad_balance: 0
+  sim_btc_balance: 0
+[2026-01-01T15:17:09] [   INFO] Simulation initialized with CAD: 1000.000000
+[2026-01-01T15:17:09] [   INFO] Simulation initialized: CAD=1000.000000, XBT=0.000000
+[2026-01-01T15:17:09] [   INFO] Entering main loop...
+[2026-01-01T15:17:09] [   INFO] Poll interval: 5 seconds
+[2026-01-01T15:17:10] [  ERROR] Kraken ticker error: EQuery:Unknown asset pair; 
+[2026-01-01T15:17:10] [WARNING] Applying backoff: 1162ms (consecutive failures: 1)
+[2026-01-01T15:17:10] [  ERROR] Failed to fetch ticker: EQuery:Unknown asset pair; 
+[2026-01-01T15:17:10] [   INFO] Status | price=0.00 | mode=FLAT | entry=null | exit=null | tp=0.00 | sl=0.00 | cooldown=0s | trades=0/3 | date=2026-01-01 | equity=0.00 | available=0.00 | risk_pct=1.00% | risk_cad=0.00 | pos_cad=0.00 | max_pos=0.00 | decision=BLOCKED | reason=Price fetch failed: EQuery:Unknown asset pair; 
+[2026-01-01T15:17:15] [  ERROR] Kraken ticker error: EQuery:Unknown asset pair; 
+[2026-01-01T15:17:15] [WARNING] Applying backoff: 1009ms (consecutive failures: 1)
+[2026-01-01T15:17:15] [  ERROR] Failed to fetch ticker: EQuery:Unknown asset pair; 
+[2026-01-01T15:17:15] [   INFO] Status | price=0.00 | mode=FLAT | entry=null | exit=null | tp=0.00 | sl=0.00 | cooldown=0s | trades=0/3 | date=2026-01-01 | equity=0.00 | available=0.00 | risk_pct=1.00% | risk_cad=0.00 | pos_cad=0.00 | max_pos=0.00 | decision=BLOCKED | reason=Price fetch failed: EQuery:Unknown asset pair; 
+[2026-01-01T15:17:17] [   INFO] Received signal 15, initiating shutdown...
+[2026-01-01T15:17:17] [   INFO] Shutting down...
+[2026-01-01T15:17:17] [   INFO] Bot stopped cleanly
+[2026-01-01T15:17:37] [   INFO] ========================================
+[2026-01-01T15:17:37] [   INFO] Kraken Trading Bot Starting
+[2026-01-01T15:17:37] [   INFO] ========================================
+[2026-01-01T15:17:37] [   INFO] Configuration loaded:
+  pair: XXBTZCAD
+  take_profit_pct: 1.5%
+  stop_loss_pct: 0.6%
+  rebuy_reset_pct: 0.6%
+  risk_per_trade_pct: 1%
+  max_position_pct: 90%
+  min_cad_required_pct: 2%
+  poll_interval_seconds: 5
+  cooldown_seconds: 600
+  max_trades_per_day: 3
+  dry_run: true
+  sim_fee_pct_roundtrip: 0.4%
+  sim_initial_cad: 1000
+  kraken_api_base: https://api.kraken.com
+  rate_limit_min_delay_ms: 500
+  max_consecutive_failures: 10
+  stale_price_seconds: 30
+[2026-01-01T15:17:37] [   INFO] *** RUNNING IN DRY-RUN MODE - NO REAL ORDERS WILL BE PLACED ***
+[2026-01-01T15:17:37] [WARNING] KRAKEN_API_KEY or KRAKEN_API_SECRET environment variables not set
+[2026-01-01T15:17:37] [WARNING] Private API endpoints will not be available
+[2026-01-01T15:17:37] [   INFO] Loaded state from: state.json
+[2026-01-01T15:17:37] [   INFO] Current state:
+  mode: FLAT
+  entry_price: null
+  exit_price: null
+  btc_amount: 0
+  last_trade_time: null
+  trades_today: 0
+  trades_date: 2026-01-01
+  sim_cad_balance: 0
+  sim_btc_balance: 0
+[2026-01-01T15:17:37] [   INFO] Simulation initialized with CAD: 1000.000000
+[2026-01-01T15:17:37] [   INFO] Simulation initialized: CAD=1000.000000, XBT=0.000000
+[2026-01-01T15:17:37] [   INFO] Entering main loop...
+[2026-01-01T15:17:37] [   INFO] Poll interval: 5 seconds
+[2026-01-01T15:17:37] [   INFO] Status | price=120820.60 | mode=FLAT | entry=null | exit=null | tp=0.00 | sl=0.00 | cooldown=0s | trades=0/3 | date=2026-01-01 | equity=1000.00 | available=1000.00 | risk_pct=1.00% | risk_cad=10.00 | pos_cad=900.00 | max_pos=900.00 | decision=BUY | reason=First trade: entering immediately
+[2026-01-01T15:17:37] [   INFO] [SIMULATED] Executing BUY: 0.007449 XBT @ ~120820.600000 CAD
+[2026-01-01T15:17:37] [   INFO] [SIMULATED] BUY FILLED: 0.007449 XBT @ 120820.600000 (cost: 900.000000 CAD)
+[2026-01-01T15:17:37] [   INFO] [SIMULATED] New balances: CAD=100.000000, XBT=0.007449
+[2026-01-01T15:17:43] [   INFO] Status | price=120809.10 | mode=LONG | entry=120820.600000 | exit=null | tp=0.00 | sl=0.00 | cooldown=594s | trades=1/3 | date=2026-01-01 | equity=0.00 | available=0.00 | risk_pct=1.00% | risk_cad=0.00 | pos_cad=0.00 | max_pos=0.00 | decision=BLOCKED | reason=Cooldown active: 594s remaining
+[2026-01-01T15:17:48] [   INFO] Status | price=120809.10 | mode=LONG | entry=120820.600000 | exit=null | tp=0.00 | sl=0.00 | cooldown=589s | trades=1/3 | date=2026-01-01 | equity=0.00 | available=0.00 | risk_pct=1.00% | risk_cad=0.00 | pos_cad=0.00 | max_pos=0.00 | decision=BLOCKED | reason=Cooldown active: 589s remaining
+[2026-01-01T15:17:49] [   INFO] Received signal 15, initiating shutdown...
+[2026-01-01T15:17:50] [   INFO] Shutting down...
+[2026-01-01T15:17:50] [   INFO] Bot stopped cleanly

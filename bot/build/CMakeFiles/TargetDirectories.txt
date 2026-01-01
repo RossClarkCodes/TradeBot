@@ -1,0 +1,7 @@
+/Users/rossclark/Desktop/trade/bot/build/CMakeFiles/trading_bot.dir
+/Users/rossclark/Desktop/trade/bot/build/CMakeFiles/edit_cache.dir
+/Users/rossclark/Desktop/trade/bot/build/CMakeFiles/rebuild_cache.dir
+/Users/rossclark/Desktop/trade/bot/build/CMakeFiles/list_install_components.dir
+/Users/rossclark/Desktop/trade/bot/build/CMakeFiles/install.dir
+/Users/rossclark/Desktop/trade/bot/build/CMakeFiles/install/local.dir
+/Users/rossclark/Desktop/trade/bot/build/CMakeFiles/install/strip.dir

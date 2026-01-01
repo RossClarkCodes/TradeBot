@@ -1,0 +1,23 @@
+{
+  "pair": "XXBTZCAD",
+  "take_profit_pct": 0.015,
+  "stop_loss_pct": 0.006,
+  "rebuy_reset_pct": 0.006,
+  "risk_per_trade_pct": 0.01,
+  "max_position_pct": 0.90,
+  "min_cad_required_pct": 0.02,
+  "poll_interval_seconds": 5,
+  "cooldown_seconds": 600,
+  "max_trades_per_day": 3,
+  "dry_run": true,
+  "sim_fee_pct_roundtrip": 0.004,
+  "sim_initial_cad": 1000.0,
+  "kraken_api_base": "https://api.kraken.com",
+  "rate_limit_min_delay_ms": 500,
+  "max_consecutive_failures": 10,
+  "stale_price_seconds": 30,
+  "state_file": "state.json",
+  "kill_switch_file": "KILL_SWITCH",
+  "log_dir": "logs"
+}
+
