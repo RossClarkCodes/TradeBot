@@ -28,12 +28,15 @@ TradingState TradingState::default_state() {
     state.mode = TradingMode::FLAT;
     state.entry_price = std::nullopt;
     state.exit_price = std::nullopt;
+    state.trailing_stop_price = std::nullopt;
     state.btc_amount = 0.0;
     state.last_trade_time = std::nullopt;
+    state.entry_time = std::nullopt;
     state.trades_today = 0;
     state.trades_date_yyyy_mm_dd = util::today_yyyy_mm_dd();
     state.sim_cad_balance = 0.0;
     state.sim_btc_balance = 0.0;
+    state.partial_take_profit_done = false;
     return state;
 }
 
@@ -74,6 +77,11 @@ TradingState TradingState::load(const std::string& path) {
     if (j.contains("exit_price") && !j["exit_price"].is_null()) {
         state.exit_price = j["exit_price"].get<double>();
     }
+
+    // Parse trailing_stop_price
+    if (j.contains("trailing_stop_price") && !j["trailing_stop_price"].is_null()) {
+        state.trailing_stop_price = j["trailing_stop_price"].get<double>();
+    }
     
     // Parse btc_amount
     if (j.contains("btc_amount") && j["btc_amount"].is_number()) {
@@ -88,6 +96,15 @@ TradingState TradingState::load(const std::string& path) {
             state.last_trade_time = util::iso8601_to_epoch(j["last_trade_time"].get<std::string>());
         }
     }
+
+    // Parse entry_time
+    if (j.contains("entry_time") && !j["entry_time"].is_null()) {
+        if (j["entry_time"].is_number()) {
+            state.entry_time = j["entry_time"].get<int64_t>();
+        } else if (j["entry_time"].is_string()) {
+            state.entry_time = util::iso8601_to_epoch(j["entry_time"].get<std::string>());
+        }
+    }
     
     // Parse trades_today
     if (j.contains("trades_today") && j["trades_today"].is_number()) {
@@ -97,6 +114,10 @@ TradingState TradingState::load(const std::string& path) {
     // Parse trades_date_yyyy_mm_dd
     if (j.contains("trades_date_yyyy_mm_dd") && j["trades_date_yyyy_mm_dd"].is_string()) {
         state.trades_date_yyyy_mm_dd = j["trades_date_yyyy_mm_dd"].get<std::string>();
+    }
+
+    if (j.contains("partial_take_profit_done") && j["partial_take_profit_done"].is_boolean()) {
+        state.partial_take_profit_done = j["partial_take_profit_done"].get<bool>();
     }
     
     // Parse simulated balances
@@ -127,6 +148,12 @@ void TradingState::save(const std::string& path) const {
     } else {
         j["exit_price"] = nullptr;
     }
+
+    if (trailing_stop_price.has_value()) {
+        j["trailing_stop_price"] = trailing_stop_price.value();
+    } else {
+        j["trailing_stop_price"] = nullptr;
+    }
     
     j["btc_amount"] = btc_amount;
     
@@ -135,11 +162,18 @@ void TradingState::save(const std::string& path) const {
     } else {
         j["last_trade_time"] = nullptr;
     }
+
+    if (entry_time.has_value()) {
+        j["entry_time"] = entry_time.value();
+    } else {
+        j["entry_time"] = nullptr;
+    }
     
     j["trades_today"] = trades_today;
     j["trades_date_yyyy_mm_dd"] = trades_date_yyyy_mm_dd;
     j["sim_cad_balance"] = sim_cad_balance;
     j["sim_btc_balance"] = sim_btc_balance;
+    j["partial_take_profit_done"] = partial_take_profit_done;
     
     std::ofstream file(path);
     if (!file.is_open()) {
@@ -187,13 +221,15 @@ void TradingState::log_state() const {
         << "\n  mode: " << mode_to_string(mode)
         << "\n  entry_price: " << (entry_price.has_value() ? std::to_string(entry_price.value()) : "null")
         << "\n  exit_price: " << (exit_price.has_value() ? std::to_string(exit_price.value()) : "null")
+        << "\n  trailing_stop_price: " << (trailing_stop_price.has_value() ? std::to_string(trailing_stop_price.value()) : "null")
         << "\n  btc_amount: " << btc_amount
         << "\n  last_trade_time: " << (last_trade_time.has_value() ? util::epoch_to_iso8601(last_trade_time.value()) : "null")
+        << "\n  entry_time: " << (entry_time.has_value() ? util::epoch_to_iso8601(entry_time.value()) : "null")
         << "\n  trades_today: " << trades_today
         << "\n  trades_date: " << trades_date_yyyy_mm_dd
+        << "\n  partial_take_profit_done: " << (partial_take_profit_done ? "true" : "false")
         << "\n  sim_cad_balance: " << sim_cad_balance
         << "\n  sim_btc_balance: " << sim_btc_balance;
     
     LOG_INFO(oss.str());
 }
-

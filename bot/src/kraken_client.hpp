@@ -12,6 +12,8 @@ struct TickerResult {
     bool success = false;
     std::string error;
     double last_price = 0.0;
+    double bid_price = 0.0;
+    double ask_price = 0.0;
     int64_t timestamp = 0;  // Unix epoch seconds when fetched
 };
 
@@ -96,4 +98,3 @@ private:
 };
 
 #endif // KRAKEN_CLIENT_HPP
-

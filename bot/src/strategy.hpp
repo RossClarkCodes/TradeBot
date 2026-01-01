@@ -6,6 +6,7 @@
 #include "kraken_client.hpp"
 #include <string>
 #include <optional>
+#include <deque>
 
 enum class Decision {
     NOOP,
@@ -33,6 +34,12 @@ struct TradeContext {
     double current_price = 0.0;
     int64_t price_timestamp = 0;
     bool price_stale = false;
+    double bid_price = 0.0;
+    double ask_price = 0.0;
+    double spread_pct = 0.0;
+    double atr = 0.0;
+    double sma_short = 0.0;
+    double sma_long = 0.0;
     
     double tp_price = 0.0;
     double sl_price = 0.0;
@@ -42,6 +49,8 @@ struct TradeContext {
     
     Decision decision = Decision::NOOP;
     std::string decision_reason;
+    double sell_volume = 0.0;
+    bool is_partial_exit = false;
     
     // For logging
     void log() const;
@@ -63,6 +72,11 @@ public:
 private:
     // Fetch current price
     bool fetch_price(TradeContext& ctx);
+
+    // Update indicators (SMA, ATR, spread)
+    void update_indicators(TradeContext& ctx);
+    bool passes_trend_filter(TradeContext& ctx) const;
+    bool passes_volatility_filter(TradeContext& ctx) const;
     
     // Calculate position sizing
     void calculate_sizing(TradeContext& ctx);
@@ -75,6 +89,9 @@ private:
     
     // Check all blocking conditions (cooldown, max trades, etc.)
     bool check_blocking_conditions(TradeContext& ctx);
+
+    // Check market conditions (spread, trend, volatility)
+    bool check_market_conditions(TradeContext& ctx);
     
     // Execute buy order
     bool execute_buy(const TradeContext& ctx);
@@ -91,7 +108,8 @@ private:
     const Config& config_;
     TradingState& state_;
     KrakenClient& client_;
+    std::deque<double> price_history_;
+    std::deque<double> tr_history_;
 };
 
 #endif // STRATEGY_HPP
-

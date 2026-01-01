@@ -242,6 +242,12 @@ TickerResult KrakenClient::get_ticker(const std::string& pair) {
             // "c" is the last trade closed array [price, lot volume]
             if (it.value().contains("c") && it.value()["c"].is_array() && !it.value()["c"].empty()) {
                 result.last_price = std::stod(it.value()["c"][0].get<std::string>());
+                if (it.value().contains("b") && it.value()["b"].is_array() && !it.value()["b"].empty()) {
+                    result.bid_price = std::stod(it.value()["b"][0].get<std::string>());
+                }
+                if (it.value().contains("a") && it.value()["a"].is_array() && !it.value()["a"].empty()) {
+                    result.ask_price = std::stod(it.value()["a"][0].get<std::string>());
+                }
                 result.timestamp = util::now_epoch_seconds();
                 result.success = true;
                 LOG_DEBUG("Ticker " + pair + ": " + std::to_string(result.last_price));
@@ -531,4 +537,3 @@ OrderResult KrakenClient::query_order(const std::string& txid) {
     
     return result;
 }
-

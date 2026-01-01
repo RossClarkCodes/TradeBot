@@ -10,6 +10,9 @@
 #include <chrono>
 #include <csignal>
 #include <atomic>
+#include <filesystem>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 // Global flag for graceful shutdown
 static std::atomic<bool> g_running{true};
@@ -97,6 +100,81 @@ void log_status(const TradingState& state, const TradeContext& ctx, const Config
         << " | reason=" << ctx.decision_reason;
     
     LOG_INFO(oss.str());
+}
+
+void write_ui_status(const TradingState& state, const TradeContext& ctx, const Config& config) {
+    namespace fs = std::filesystem;
+    fs::create_directories(config.ui_dir);
+
+    nlohmann::json j;
+    j["price"] = ctx.current_price;
+    j["mode"] = mode_to_string(state.mode);
+    j["entry_price"] = state.entry_price.has_value() ? state.entry_price.value() : 0.0;
+    j["exit_price"] = state.exit_price.has_value() ? state.exit_price.value() : 0.0;
+    j["tp_price"] = ctx.tp_price;
+    j["sl_price"] = ctx.sl_price;
+    j["decision"] = decision_to_string(ctx.decision);
+    j["decision_reason"] = ctx.decision_reason;
+    j["trades_today"] = state.trades_today;
+    j["max_trades_per_day"] = config.max_trades_per_day;
+    j["equity_cad"] = ctx.sizing.equity_cad;
+    j["available_cad"] = ctx.sizing.available_cad;
+    j["risk_cad"] = ctx.sizing.risk_cad;
+    j["position_cad"] = ctx.sizing.position_cad;
+    j["spread_pct"] = ctx.spread_pct;
+    j["atr"] = ctx.atr;
+    j["sma_short"] = ctx.sma_short;
+    j["sma_long"] = ctx.sma_long;
+
+    std::ofstream status_file(config.ui_dir + "/status.json");
+    status_file << j.dump(2) << std::endl;
+
+    fs::path index_path = fs::path(config.ui_dir) / "index.html";
+    if (!fs::exists(index_path)) {
+        std::ofstream index_file(index_path);
+        index_file << "<!doctype html>\n"
+                      "<html lang=\"en\">\n"
+                      "<head>\n"
+                      "  <meta charset=\"utf-8\" />\n"
+                      "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n"
+                      "  <title>Trading Bot Status</title>\n"
+                      "  <style>\n"
+                      "    body { font-family: sans-serif; margin: 20px; }\n"
+                      "    .card { border: 1px solid #ddd; padding: 16px; border-radius: 8px; max-width: 600px; }\n"
+                      "    .row { margin: 6px 0; }\n"
+                      "    .label { font-weight: bold; }\n"
+                      "  </style>\n"
+                      "</head>\n"
+                      "<body>\n"
+                      "  <h2>Trading Bot Status</h2>\n"
+                      "  <div class=\"card\" id=\"card\">Loading...</div>\n"
+                      "  <script>\n"
+                      "    async function loadStatus() {\n"
+                      "      const res = await fetch('status.json?_=' + Date.now());\n"
+                      "      const s = await res.json();\n"
+                      "      document.getElementById('card').innerHTML = `\n"
+                      "        <div class=\"row\"><span class=\"label\">Price:</span> ${s.price}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">Mode:</span> ${s.mode}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">Entry:</span> ${s.entry_price}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">Exit:</span> ${s.exit_price}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">TP:</span> ${s.tp_price}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">SL:</span> ${s.sl_price}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">Decision:</span> ${s.decision}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">Reason:</span> ${s.decision_reason}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">Trades Today:</span> ${s.trades_today}/${s.max_trades_per_day}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">Equity (CAD):</span> ${s.equity_cad}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">Available (CAD):</span> ${s.available_cad}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">Spread %:</span> ${(s.spread_pct * 100).toFixed(4)}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">ATR:</span> ${s.atr}</div>\n"
+                      "        <div class=\"row\"><span class=\"label\">SMA Short/Long:</span> ${s.sma_short} / ${s.sma_long}</div>\n"
+                      "      `;\n"
+                      "    }\n"
+                      "    loadStatus();\n"
+                      "    setInterval(loadStatus, 2000);\n"
+                      "  </script>\n"
+                      "</body>\n"
+                      "</html>\n";
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -212,6 +290,7 @@ int main(int argc, char* argv[]) {
         
         // Log status
         log_status(state, ctx, config);
+        write_ui_status(state, ctx, config);
         
         // Execute if needed
         if (ctx.decision == Decision::BUY || ctx.decision == Decision::SELL) {
@@ -234,4 +313,3 @@ int main(int argc, char* argv[]) {
     LOG_INFO("Bot stopped cleanly");
     return 0;
 }
-

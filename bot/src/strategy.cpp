@@ -68,6 +68,8 @@ bool Strategy::fetch_price(TradeContext& ctx) {
     }
     
     ctx.current_price = ticker.last_price;
+    ctx.bid_price = ticker.bid_price;
+    ctx.ask_price = ticker.ask_price;
     ctx.price_timestamp = ticker.timestamp;
     
     // Check for stale price
@@ -82,6 +84,85 @@ bool Strategy::fetch_price(TradeContext& ctx) {
     }
     
     return true;
+}
+
+void Strategy::update_indicators(TradeContext& ctx) {
+    if (ctx.current_price <= 0) {
+        return;
+    }
+
+    if (!price_history_.empty()) {
+        double prev_price = price_history_.back();
+        double tr = std::abs(ctx.current_price - prev_price);
+        tr_history_.push_back(tr);
+        if (static_cast<int>(tr_history_.size()) > config_.atr_window) {
+            tr_history_.pop_front();
+        }
+    }
+
+    price_history_.push_back(ctx.current_price);
+    if (static_cast<int>(price_history_.size()) > config_.trend_window_long) {
+        price_history_.pop_front();
+    }
+
+    if (config_.atr_window > 0 && !tr_history_.empty()) {
+        double tr_sum = 0.0;
+        for (double tr : tr_history_) {
+            tr_sum += tr;
+        }
+        ctx.atr = tr_sum / static_cast<double>(tr_history_.size());
+    }
+
+    if (config_.trend_window_short > 0 && config_.trend_window_long > 0 &&
+        static_cast<int>(price_history_.size()) >= config_.trend_window_long) {
+        double short_sum = 0.0;
+        double long_sum = 0.0;
+        int long_count = 0;
+        int short_count = 0;
+        int start_index = static_cast<int>(price_history_.size()) - config_.trend_window_long;
+        for (int i = start_index; i < static_cast<int>(price_history_.size()); ++i) {
+            long_sum += price_history_[i];
+            long_count++;
+            if (i >= static_cast<int>(price_history_.size()) - config_.trend_window_short) {
+                short_sum += price_history_[i];
+                short_count++;
+            }
+        }
+        if (long_count > 0) {
+            ctx.sma_long = long_sum / static_cast<double>(long_count);
+        }
+        if (short_count > 0) {
+            ctx.sma_short = short_sum / static_cast<double>(short_count);
+        }
+    }
+
+    if (ctx.bid_price > 0.0 && ctx.ask_price > 0.0 && ctx.ask_price >= ctx.bid_price) {
+        double mid = (ctx.bid_price + ctx.ask_price) / 2.0;
+        if (mid > 0) {
+            ctx.spread_pct = (ctx.ask_price - ctx.bid_price) / mid;
+        }
+    }
+}
+
+bool Strategy::passes_trend_filter(TradeContext& ctx) const {
+    if (!config_.require_trend_up) {
+        return true;
+    }
+    if (ctx.sma_short <= 0 || ctx.sma_long <= 0) {
+        return false;
+    }
+    return ctx.sma_short >= ctx.sma_long;
+}
+
+bool Strategy::passes_volatility_filter(TradeContext& ctx) const {
+    if (config_.min_atr_pct <= 0 || ctx.current_price <= 0) {
+        return true;
+    }
+    if (ctx.atr <= 0) {
+        return false;
+    }
+    double atr_pct = ctx.atr / ctx.current_price;
+    return atr_pct >= config_.min_atr_pct;
 }
 
 void Strategy::calculate_sizing(TradeContext& ctx) {
@@ -186,6 +267,28 @@ bool Strategy::check_blocking_conditions(TradeContext& ctx) {
     return false;  // Not blocked
 }
 
+bool Strategy::check_market_conditions(TradeContext& ctx) {
+    if (config_.max_spread_pct > 0 && ctx.spread_pct > config_.max_spread_pct) {
+        ctx.decision = Decision::BLOCKED;
+        ctx.decision_reason = "Spread too wide: " + std::to_string(ctx.spread_pct * 100) + "%";
+        return true;
+    }
+
+    if (!passes_volatility_filter(ctx)) {
+        ctx.decision = Decision::BLOCKED;
+        ctx.decision_reason = "Volatility too low (ATR): " + std::to_string(ctx.atr);
+        return true;
+    }
+
+    if (!passes_trend_filter(ctx)) {
+        ctx.decision = Decision::BLOCKED;
+        ctx.decision_reason = "Trend filter: SMA short below SMA long";
+        return true;
+    }
+
+    return false;
+}
+
 bool Strategy::check_entry_condition(TradeContext& ctx) {
     // First trade ever: enter immediately
     if (!state_.exit_price.has_value()) {
@@ -217,8 +320,45 @@ bool Strategy::check_exit_condition(TradeContext& ctx) {
     }
     
     double entry = state_.entry_price.value();
-    ctx.tp_price = entry * (1.0 + config_.take_profit_pct);
-    ctx.sl_price = entry * (1.0 - config_.stop_loss_pct);
+    if (config_.use_dynamic_tp_sl && ctx.atr > 0) {
+        ctx.tp_price = entry + (ctx.atr * config_.tp_atr_mult);
+        ctx.sl_price = entry - (ctx.atr * config_.sl_atr_mult);
+    } else {
+        ctx.tp_price = entry * (1.0 + config_.take_profit_pct);
+        ctx.sl_price = entry * (1.0 - config_.stop_loss_pct);
+    }
+
+    if (!state_.partial_take_profit_done && config_.partial_tp_pct > 0) {
+        double partial_tp_price = entry * (1.0 + config_.partial_tp_pct);
+        if (ctx.current_price >= partial_tp_price) {
+            ctx.decision_reason = "Partial take profit triggered";
+            ctx.is_partial_exit = true;
+            double current_btc = config_.dry_run ? state_.sim_btc_balance : state_.btc_amount;
+            ctx.sell_volume = current_btc * config_.partial_tp_sell_pct;
+            return true;
+        }
+    }
+
+    if (config_.trailing_stop_pct > 0) {
+        double trailing_base = ctx.current_price * (1.0 - config_.trailing_stop_pct);
+        if (!state_.trailing_stop_price.has_value()) {
+            state_.trailing_stop_price = trailing_base;
+        } else if (trailing_base > state_.trailing_stop_price.value()) {
+            state_.trailing_stop_price = trailing_base;
+        }
+        if (ctx.current_price <= state_.trailing_stop_price.value()) {
+            ctx.decision_reason = "Trailing stop triggered";
+            return true;
+        }
+    }
+
+    if (config_.max_hold_seconds > 0 && state_.entry_time.has_value()) {
+        int64_t now = util::now_epoch_seconds();
+        if ((now - state_.entry_time.value()) >= config_.max_hold_seconds) {
+            ctx.decision_reason = "Time-based exit triggered";
+            return true;
+        }
+    }
     
     // Check take profit
     if (ctx.current_price >= ctx.tp_price) {
@@ -254,6 +394,8 @@ TradeContext Strategy::evaluate() {
     if (!fetch_price(ctx)) {
         return ctx;
     }
+
+    update_indicators(ctx);
     
     // Check blocking conditions
     if (check_blocking_conditions(ctx)) {
@@ -270,6 +412,10 @@ TradeContext Strategy::evaluate() {
             ctx.decision_reason = ctx.sizing.block_reason;
             return ctx;
         }
+
+        if (check_market_conditions(ctx)) {
+            return ctx;
+        }
         
         if (check_entry_condition(ctx)) {
             ctx.decision = Decision::BUY;
@@ -280,8 +426,13 @@ TradeContext Strategy::evaluate() {
         // LONG mode
         // Set levels for logging even if not exiting
         if (state_.entry_price.has_value()) {
-            ctx.tp_price = state_.entry_price.value() * (1.0 + config_.take_profit_pct);
-            ctx.sl_price = state_.entry_price.value() * (1.0 - config_.stop_loss_pct);
+            if (config_.use_dynamic_tp_sl && ctx.atr > 0) {
+                ctx.tp_price = state_.entry_price.value() + (ctx.atr * config_.tp_atr_mult);
+                ctx.sl_price = state_.entry_price.value() - (ctx.atr * config_.sl_atr_mult);
+            } else {
+                ctx.tp_price = state_.entry_price.value() * (1.0 + config_.take_profit_pct);
+                ctx.sl_price = state_.entry_price.value() * (1.0 - config_.stop_loss_pct);
+            }
         }
         
         if (check_exit_condition(ctx)) {
@@ -353,6 +504,13 @@ bool Strategy::execute_buy(const TradeContext& ctx) {
     state_.mode = TradingMode::LONG;
     state_.trades_today++;
     state_.last_trade_time = util::now_epoch_seconds();
+    state_.entry_time = state_.last_trade_time;
+    state_.partial_take_profit_done = false;
+    if (config_.trailing_stop_pct > 0) {
+        state_.trailing_stop_price = fill_result.avg_price * (1.0 - config_.trailing_stop_pct);
+    } else {
+        state_.trailing_stop_price = std::nullopt;
+    }
     state_.save(config_.state_file);
     
     LOG_INFO("BUY FILLED: txid=" + fill_result.txid + 
@@ -366,7 +524,16 @@ bool Strategy::execute_buy(const TradeContext& ctx) {
 bool Strategy::execute_sell(const TradeContext& ctx) {
     std::string mode_label = config_.dry_run ? "[SIMULATED] " : "";
     
-    double btc_to_sell = config_.dry_run ? state_.sim_btc_balance : state_.btc_amount;
+    double current_btc = config_.dry_run ? state_.sim_btc_balance : state_.btc_amount;
+    double btc_to_sell = (ctx.sell_volume > 0.0) ? ctx.sell_volume : current_btc;
+
+    if (btc_to_sell <= 0.0) {
+        LOG_ERROR("Sell volume is zero or negative");
+        return false;
+    }
+    if (btc_to_sell > current_btc) {
+        btc_to_sell = current_btc;
+    }
     
     LOG_INFO(mode_label + "Executing SELL: " + 
              std::to_string(btc_to_sell) + " XBT @ ~" + 
@@ -396,8 +563,15 @@ bool Strategy::execute_sell(const TradeContext& ctx) {
     
     // Update state with confirmed fill details
     state_.exit_price = fill_result.avg_price;
-    state_.btc_amount = 0.0;
-    state_.mode = TradingMode::FLAT;
+    state_.btc_amount = std::max(0.0, state_.btc_amount - fill_result.volume);
+    if (ctx.is_partial_exit && state_.btc_amount > 0.0) {
+        state_.partial_take_profit_done = true;
+        state_.mode = TradingMode::LONG;
+    } else {
+        state_.mode = TradingMode::FLAT;
+        state_.entry_time = std::nullopt;
+        state_.trailing_stop_price = std::nullopt;
+    }
     state_.trades_today++;
     state_.last_trade_time = util::now_epoch_seconds();
     state_.save(config_.state_file);
@@ -431,6 +605,13 @@ void Strategy::simulate_fill(const std::string& side, double btc_amount, double 
         state_.mode = TradingMode::LONG;
         state_.trades_today++;
         state_.last_trade_time = util::now_epoch_seconds();
+        state_.entry_time = state_.last_trade_time;
+        state_.partial_take_profit_done = false;
+        if (config_.trailing_stop_pct > 0) {
+            state_.trailing_stop_price = price * (1.0 - config_.trailing_stop_pct);
+        } else {
+            state_.trailing_stop_price = std::nullopt;
+        }
         
         LOG_INFO("[SIMULATED] BUY FILLED: " + std::to_string(btc_amount) + 
                  " XBT @ " + std::to_string(price) + 
@@ -447,7 +628,7 @@ void Strategy::simulate_fill(const std::string& side, double btc_amount, double 
         
         // Add CAD, clear BTC
         state_.sim_cad_balance += proceeds_cad;
-        state_.sim_btc_balance = 0.0;
+        state_.sim_btc_balance = std::max(0.0, state_.sim_btc_balance - btc_amount);
         
         // Log P&L
         double pnl_cad = 0.0;
@@ -462,8 +643,14 @@ void Strategy::simulate_fill(const std::string& side, double btc_amount, double 
         
         // Update state
         state_.exit_price = price;
-        state_.btc_amount = 0.0;
-        state_.mode = TradingMode::FLAT;
+        state_.btc_amount = std::max(0.0, state_.btc_amount - btc_amount);
+        if (state_.btc_amount > 0.0) {
+            state_.partial_take_profit_done = true;
+        } else {
+            state_.mode = TradingMode::FLAT;
+            state_.entry_time = std::nullopt;
+            state_.trailing_stop_price = std::nullopt;
+        }
         state_.trades_today++;
         state_.last_trade_time = util::now_epoch_seconds();
         
@@ -495,4 +682,3 @@ bool Strategy::execute(const TradeContext& ctx) {
             return false;
     }
 }
-

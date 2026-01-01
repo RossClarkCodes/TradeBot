@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trading Bot Status</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    .card { border: 1px solid #ddd; padding: 16px; border-radius: 8px; max-width: 600px; }
+    .row { margin: 6px 0; }
+    .label { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>Trading Bot Status</h2>
+  <div class="card" id="card">Loading...</div>
+  <script>
+    async function loadStatus() {
+      const res = await fetch('status.json?_=' + Date.now());
+      const s = await res.json();
+      document.getElementById('card').innerHTML = `
+        <div class="row"><span class="label">Price:</span> ${s.price}</div>
+        <div class="row"><span class="label">Mode:</span> ${s.mode}</div>
+        <div class="row"><span class="label">Entry:</span> ${s.entry_price}</div>
+        <div class="row"><span class="label">Exit:</span> ${s.exit_price}</div>
+        <div class="row"><span class="label">TP:</span> ${s.tp_price}</div>
+        <div class="row"><span class="label">SL:</span> ${s.sl_price}</div>
+        <div class="row"><span class="label">Decision:</span> ${s.decision}</div>
+        <div class="row"><span class="label">Reason:</span> ${s.decision_reason}</div>
+        <div class="row"><span class="label">Trades Today:</span> ${s.trades_today}/${s.max_trades_per_day}</div>
+        <div class="row"><span class="label">Equity (CAD):</span> ${s.equity_cad}</div>
+        <div class="row"><span class="label">Available (CAD):</span> ${s.available_cad}</div>
+        <div class="row"><span class="label">Spread %:</span> ${(s.spread_pct * 100).toFixed(4)}</div>
+        <div class="row"><span class="label">ATR:</span> ${s.atr}</div>
+        <div class="row"><span class="label">SMA Short/Long:</span> ${s.sma_short} / ${s.sma_long}</div>
+      `;
+    }
+    loadStatus();
+    setInterval(loadStatus, 2000);
+  </script>
+</body>
+</html>
